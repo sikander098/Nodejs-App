@@ -2,7 +2,7 @@ name: Deploy Node.js App
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
