@@ -2,7 +2,7 @@ name: Deploy Node.js App
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -21,6 +21,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Run tests
+        run: npm test
 
   deploy:
     needs: build-test
@@ -41,9 +44,13 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/node-app:latest
 
+      - name: Set up kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
+          export KUBECONFIG=$(pwd)/kubeconfig.yaml
+          kubectl config view
+
       - name: Deploy to Kubernetes
         run: |
           echo "Deploying to Kubernetes..."
           kubectl apply -f deployment.yaml
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
