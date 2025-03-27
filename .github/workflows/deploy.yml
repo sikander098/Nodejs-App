@@ -50,28 +50,47 @@ jobs:
           echo "${{ secrets.EC2_KEY }}" | base64 --decode > node-siku.pem
           chmod 400 node-siku.pem
           ssh -i node-siku.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+
+            echo "🔹 Updating packages and installing Docker..."
+            sudo yum update -y
+            sudo yum install -y docker
+            sudo systemctl enable docker
+            sudo systemctl start docker
+            sudo usermod -aG docker $USER
+
             echo "🔹 Pulling the latest Docker image..."
-            docker pull ${{ env.DOCKERHUB_USERNAME }}/node-app:latest
+            docker pull $DOCKERHUB_USERNAME/node-app:latest
 
             echo "🔹 Stopping and removing any existing container..."
             docker stop my-nodejs-app || true  
             docker rm my-nodejs-app || true    
 
             echo "🔹 Running the new container..."
-            docker run -d --name my-nodejs-app -p 80:3000 ${{ env.DOCKERHUB_USERNAME }}/node-app:latest
+            docker run -d --name my-nodejs-app -p 80:3000 $DOCKERHUB_USERNAME/node-app:latest
 
             echo "🔹 Waiting for the container to start..."
-            sleep 5  # Wait a few seconds for the app to start
+            sleep 5  
 
             echo "🔹 Checking container status..."
             if docker ps | grep my-nodejs-app; then
               echo "✅ Deployment successful! The container is running."
             else
               echo "❌ Deployment failed! The container is not running."
-              exit 1  # Stop the pipeline if the container fails to start
+              exit 1  
             fi
 
             echo "🔹 Checking app health..."
+            for i in {1..5}; do
+              if curl -f http://localhost:80; then
+                echo "✅ Health check passed!"
+                break
+              fi
+              echo "🔄 Retrying health check... ($i/5)"
+              sleep 5
+            done || (echo "❌ Health check failed! App is not responding." && exit 1)
+          EOF
+
             curl -f http://localhost:80 || (echo "❌ Health check failed! App is not responding." && exit 1)
           EOF
 
