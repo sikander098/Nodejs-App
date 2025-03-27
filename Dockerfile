@@ -1,13 +1,28 @@
-# Stage 1: Build
-FROM node:18-alpine as builder
-WORKDIR /app
-COPY package.json .
-RUN npm install
+# syntax=docker/dockerfile:1
+
+ARG NODE_VERSION=20.15.0
+FROM node:${NODE_VERSION}-alpine
+
+# Use production node environment by default.
+ENV NODE_ENV production
+
+# Set the working directory.
+WORKDIR /usr/src/app
+
+# Copy package files first to leverage Docker caching.
+COPY package.json package-lock.json ./
+
+# Install dependencies using npm ci for reproducible builds.
+RUN npm ci --omit=dev
+
+# Copy the rest of the application files.
 COPY . .
 
-# Stage 2: Runtime
-FROM node:18-alpine
-WORKDIR /app
-COPY --from=builder /app .
+# Run the application as a non-root user.
+USER node
+
+# Expose the port that the application listens on.
 EXPOSE 3000
+
+# Run the application.
 CMD ["npm", "start"]
