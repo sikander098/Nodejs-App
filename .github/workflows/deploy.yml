@@ -40,17 +40,11 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/node-app:latest
-  deploy:
+
+  deploy:  # ✅ Fix indentation here
     needs: build-push
     runs-on: ubuntu-latest
     steps:
       - name: SSH into EC2 and deploy
         run: |
           echo "${{ secrets.EC2_KEY }}" | base64 --decode > node-siku.pem
-          chmod 400 node-siku.pem
-          ssh -i node-siku.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} "
-            docker pull ${{ env.DOCKERHUB_USERNAME }}/node-app:latest
-            docker stop my-nodejs-app || true  # Stop the container if it exists
-            docker rm my-nodejs-app || true    # Remove the container if it exists
-            docker run -d --name my-nodejs-app -p 80:3000 ${{ env.DOCKERHUB_USERNAME }}/node-app:latest
-          "
